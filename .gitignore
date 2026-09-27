@@ -42,4 +42,4 @@ debian/indi-allsky/
 debian/wheels/
 debian/changelog
 *.deb
-
+.idea/
