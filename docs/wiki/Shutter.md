@@ -1,14 +1,41 @@
-# Overview
-The shutter controller support in indi-allsky is intended to use the GPIO or PWM pins from a SBC such as a Raspberry PI to drive either a MOSFET or relay to manage a shutter or a shader state.
+# Shutter
 
-The default functionality is to move the shutter during the day between exposures, so it will be the shutter will cover the camera most of the time, but will move to allow taking exposures. During the night it might also operate and in case of rain, it will protect the camera dome from water drops.
+## First-release specification
 
-The shutter is actioned by a servo, with two positions: open and close. Open means the shutter is open and the camera can take pictures. Close means the shutter is closed and the camera is covered by the shutter.
+Shutter control is a planned first-class indi-allsky feature coordinated with the camera capture loop. This page specifies the intended behavior; it is not yet implemented in the main application. The standalone script in `misc/solar_shutter_indi.py` is a prototype and is not the feature's operational contract.
 
-## GPIO Permissions
-If you receive a `PermissionDenied` exception when accessing GPIO pins
+The first release supports a positional servo with two configured positions:
 
-https://github.com/aaronwmorris/indi-allsky/wiki/GPIO-Permissions
+- **Open:** the camera aperture is unobstructed for an exposure.
+- **Closed:** the camera aperture is covered between daytime exposures.
 
-## WARNING
-**The pins from a SBC cannot be used to directly drive a servo.  Trying to do so WILL damage your system.**
+### Daytime capture sequence
+
+When shutter control is enabled:
+
+1. At startup, make a best-effort move to CLOSED.
+2. Before each scheduled daytime camera exposure, command OPEN and allow the configured servo travel/settling time before starting the exposure.
+3. Keep the shutter open until the camera reports that exposure/readout has completed.
+4. Then command CLOSED. Do not keep it open while the image is processed or saved.
+
+The capture loop, rather than a separate polling daemon or image-database query, coordinates these transitions and remains authoritative for exposure cadence. Shutter timing must be coordinated with that schedule; do not start an exposure before the shutter has had time to open.
+
+### Errors and capture continuity
+
+If a shutter-control operation fails, report the error and make a best-effort command to move OPEN. Do not block or abort camera captures because of a shutter-control error. The servo has no position feedback in this specification, so a successful command does not guarantee that the requested physical position was reached.
+
+### Hardware and configuration
+
+The actuator for this release is a positional servo controlled by PWM. The GPIO output, open/closed pulse widths, and travel/settling time must be configurable for the target board and servo; pin numbers, pulse-width values, and delays used by the prototype are not defaults established by this specification.
+
+Power the servo according to its electrical requirements. Do not power it directly from an SBC GPIO pin; use an appropriate servo supply and follow the board and servo requirements for the signal reference and wiring.
+
+### Out of scope
+
+- Nighttime shutter operation.
+- Rain-triggered closure. indi-allsky may report rain sensor data, but rain is not a shutter-control trigger in this release.
+- Relay/MOSFET binary actuator support.
+
+## GPIO permissions
+
+If you receive a `PermissionDenied` exception when accessing GPIO pins, see the [GPIO Permissions guide](https://github.com/aaronwmorris/indi-allsky/wiki/GPIO-Permissions).
