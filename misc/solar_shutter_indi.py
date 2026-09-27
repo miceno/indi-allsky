@@ -41,6 +41,7 @@ CHIP_NUM = 0
 DEFAULT_CYCLE = 120
 LEAD_TIME = 2  # Timing cushion before shutter release (seconds)
 MIN_DURATION = 3  # Minimum safe window for exposure + I/O write (seconds)
+IMAGE_PROCESSING_OVERHEAD = 2.5  # Processing and disk I/O margin (seconds)
 
 
 class IndiAllSkyShutter:
@@ -73,8 +74,7 @@ class IndiAllSkyShutter:
 
             if image and image.exposure:
                 exposure_seconds = float(image.exposure)
-                # We add a 2.5s overhead margin for image processing, FITS compression and disk I/O
-                dynamic_duration = max(MIN_DURATION, exposure_seconds + 2.5)
+                dynamic_duration = max(MIN_DURATION, exposure_seconds + IMAGE_PROCESSING_OVERHEAD)
                 return dynamic_duration
         except (SQLAlchemyError, TypeError, ValueError) as e:
             logging.debug(f"Could not read dynamic exposure column, using safe margin: {e}")
