@@ -22,6 +22,7 @@ import queue
 
 from . import constants
 from . import camera as camera_module
+from .devices import shutters
 
 from .utils import IndiAllSkyDateCalcs
 from .utils import IndiAllSkyExposureUtils
@@ -38,6 +39,7 @@ from .exceptions import IndiServerException
 from .exceptions import CameraException
 from .exceptions import TimeOutException
 from .exceptions import TemperatureException
+from .devices.exceptions import DeviceControlException
 
 from .flask import create_app
 from .flask import db
@@ -249,6 +251,8 @@ class CaptureWorker(Process):
         self.next_forced_transition_time = None
 
         self.indiclient = None
+        self.shutter = None
+        self._shutter_exposure_active = False
 
         self.night = None
         self.moonmode = None
@@ -338,6 +342,8 @@ class CaptureWorker(Process):
             tb = traceback.format_exc()
             self.error_q.put((str(e), tb))
             raise e
+        finally:
+            self._deinit_shutter()
 
 
 
@@ -623,6 +629,7 @@ class CaptureWorker(Process):
                     if not last_camera_ready:
                         camera_ready_time = now_time
 
+                    self._close_shutter_after_exposure()
 
                     if waiting_for_frame:
                         frame_elapsed = now_time - frame_start_time
@@ -826,6 +833,8 @@ class CaptureWorker(Process):
 
 
     def _initialize(self):
+        self._init_shutter()
+
         camera_interface = getattr(camera_module, self.config.get('CAMERA_INTERFACE', 'indi'))
 
 
@@ -2285,7 +2294,71 @@ class CaptureWorker(Process):
         # sqm used for an image taking at a specific exposure/gain for a controlled SQM measurement
         logger.info('Taking %0.6fs exposure (gain %0.3f / bin %d)', exposure, gain, binning)
 
+        if not self.night and self.shutter is not None:
+            self._shutter_exposure_active = True
+            self._set_shutter_state(shutters.blinka_shutter_pwm.OPEN)
+
         self.indiclient.setCcdExposure(exposure, gain, binning, sync=sync, timeout=timeout, sqm_exposure=sqm_exposure)
+
+
+    def _init_shutter(self):
+        shutter_config = self.config.get('SHUTTER', {})
+        shutter_classname = shutter_config.get('CLASSNAME')
+        if not shutter_classname:
+            return
+
+        try:
+            shutter_class = getattr(shutters, shutter_classname)
+            self.shutter = shutter_class(
+                self.config,
+                pin_1_name=shutter_config.get('PIN_1', ''),
+                open_pulse_us=shutter_config.get('OPEN_PULSE_US', 1000),
+                closed_pulse_us=shutter_config.get('CLOSED_PULSE_US', 2000),
+                settle_time=shutter_config.get('SETTLE_TIME', 1.0),
+            )
+        except (AttributeError, ImportError, OSError, RuntimeError, TypeError, ValueError, DeviceControlException) as e:
+            logger.error('Error initializing shutter controller: %s', str(e))
+            self.shutter = None
+            return
+
+        self._set_shutter_state(shutters.blinka_shutter_pwm.CLOSED)
+
+
+    def _set_shutter_state(self, new_state):
+        if self.shutter is None:
+            return
+
+        try:
+            self.shutter.state = new_state
+        except (DeviceControlException, OSError, IOError) as e:
+            logger.error('Shutter exception while setting %s: %s', new_state, str(e))
+            try:
+                self.shutter.state = shutters.blinka_shutter_pwm.OPEN
+            except (DeviceControlException, OSError, IOError) as recovery_error:
+                logger.error('Shutter OPEN recovery failed: %s', str(recovery_error))
+
+
+    def _close_shutter_after_exposure(self):
+        if not self._shutter_exposure_active:
+            return
+
+        self._set_shutter_state(shutters.blinka_shutter_pwm.CLOSED)
+        self._shutter_exposure_active = False
+
+
+    def _deinit_shutter(self):
+        if self.shutter is None:
+            return
+
+        self._set_shutter_state(shutters.blinka_shutter_pwm.CLOSED)
+
+        try:
+            self.shutter.deinit()
+        except (DeviceControlException, OSError, IOError) as e:
+            logger.error('Error releasing shutter controller: %s', str(e))
+
+        self.shutter = None
+        self._shutter_exposure_active = False
 
 
     def setTimeSystemd(self, new_datetime_utc):
@@ -2557,4 +2630,3 @@ class CaptureWorker(Process):
 
         for x, label in enumerate(temp_label_list[:50]):  # limit to 50
             self.SENSOR_SLOTS[x + 80][1] = '{0:s}'.format(label)
-

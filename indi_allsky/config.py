@@ -731,6 +731,13 @@ class IndiAllSkyConfigBase(object):
             "HOLD_SECONDS"           : 0,
             "PWM_FREQUENCY"          : 500,
         },
+        "SHUTTER" : {
+            "CLASSNAME"              : "",
+            "PIN_1"                  : "",
+            "OPEN_PULSE_US"          : 1000,
+            "CLOSED_PULSE_US"        : 2000,
+            "SETTLE_TIME"            : 1.0,
+        },
         "FAN" : {
             "CLASSNAME"              : "",
             "ENABLE_NIGHT"           : False,
@@ -1871,4 +1878,3 @@ class IndiAllSkyConfigUtil(IndiAllSkyConfig):
         db.session.commit()
 
         return system_user
-

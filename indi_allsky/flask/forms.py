@@ -3193,6 +3193,11 @@ def DEW_HEATER__CLASSNAME_validator(form, field):
         raise ValidationError('Invalid selection')
 
 
+def SHUTTER__CLASSNAME_validator(form, field):
+    if field.data not in list(zip(*form.SHUTTER__CLASSNAME_choices))[0]:
+        raise ValidationError('Invalid selection')
+
+
 def DEW_HEATER__LEVEL_validator(form, field):
     if not isinstance(field.data, int):
         raise ValidationError('Please enter a valid number')
@@ -4128,6 +4133,11 @@ class IndiAllskyConfigForm(FlaskForm):
         ('mqtt_dew_heater_standard', 'Dew Heater - MQTT Standard'),
         ('mqtt_dew_heater_pwm', 'Dew Heater - MQTT PWM'),
         ('serial_dew_heater_pwm', 'Dew Heater - PWM [Serial Port] (BETA)'),
+    )
+
+    SHUTTER__CLASSNAME_choices = (
+        ('', 'None'),
+        ('blinka_shutter_pwm', 'Shutter - Positional Servo [PWM]'),
     )
 
     FAN__CLASSNAME_choices = (
@@ -5141,7 +5151,12 @@ class IndiAllskyConfigForm(FlaskForm):
     DEW_HEATER__THOLD_DIFF_HIGH      = StringField('High Threshold Delta', validators=[DEW_HEATER__THOLD_DIFF_validator])
     DEW_HEATER__HOLD_SECONDS         = IntegerField('Change Hold Time (seconds)', validators=[DEW_HEATER__HOLD_SECONDS_validator])
     DEW_HEATER__PWM_FREQUENCY        = IntegerField('PWM Frequency', validators=[PWM_FREQUENCY_validator])
-    FAN__CLASSNAME                   = SelectField('Fan', choices=FAN__CLASSNAME_choices, validators=[FAN__CLASSNAME_validator])
+    SHUTTER__CLASSNAME              = SelectField('Shutter', choices=SHUTTER__CLASSNAME_choices, validators=[SHUTTER__CLASSNAME_validator])
+    SHUTTER__PIN_1                  = StringField('GPIO Pin', validators=[DEVICE_PIN_NAME_validator])
+    SHUTTER__OPEN_PULSE_US          = IntegerField('Open Pulse Width (microseconds)', validators=[NumberRange(min=500, max=2500)], widget=NumberInput(min=500, max=2500, step=1))
+    SHUTTER__CLOSED_PULSE_US        = IntegerField('Closed Pulse Width (microseconds)', validators=[NumberRange(min=500, max=2500)], widget=NumberInput(min=500, max=2500, step=1))
+    SHUTTER__SETTLE_TIME            = FloatField('Servo Settling Time (seconds)', validators=[NumberRange(min=0, max=30)], widget=NumberInput(min=0, max=30, step=0.1))
+    FAN__CLASSNAME                 = SelectField('Fan', choices=FAN__CLASSNAME_choices, validators=[FAN__CLASSNAME_validator])
     FAN__ENABLE_NIGHT                = BooleanField('Enable Night')
     FAN__I2C_ADDRESS                 = StringField('I2C Address', validators=[DataRequired(), I2C_ADDRESS_validator])
     FAN__PIN_1                       = StringField('Pin', validators=[DEVICE_PIN_NAME_validator])
@@ -5964,6 +5979,43 @@ class IndiAllskyConfigForm(FlaskForm):
                 except (AttributeError, RuntimeError, ValueError, FileNotFoundError, OSError):
                     self.DEW_HEATER__CLASSNAME.errors.append('I2C not available for your system')
                     result = False
+
+
+        # shutter
+        if self.SHUTTER__CLASSNAME.data:
+            try:
+                import board
+
+                if self.SHUTTER__PIN_1.data:
+                    try:
+                        getattr(board, self.SHUTTER__PIN_1.data)
+                    except AttributeError:
+                        self.SHUTTER__PIN_1.errors.append('PIN {0:s} not valid for your system'.format(self.SHUTTER__PIN_1.data))
+                        result = False
+                else:
+                    self.SHUTTER__PIN_1.errors.append('PIN must be defined')
+                    result = False
+
+            except NotImplementedError:
+                self.SHUTTER__CLASSNAME.errors.append('System not supported by Adafruit Blinka module')
+                result = False
+
+            except ImportError:
+                self.SHUTTER__CLASSNAME.errors.append('GPIO python modules not installed')
+                result = False
+
+            except PermissionError:
+                self.SHUTTER__PIN_1.errors.append('GPIO permissions need to be fixed')
+                result = False
+
+            except (FileNotFoundError, OSError, RuntimeError) as e:
+                self.SHUTTER__CLASSNAME.errors.append('GPIO hardware error: {0:s}'.format(str(e)))
+                result = False
+
+            if self.SHUTTER__OPEN_PULSE_US.data == self.SHUTTER__CLOSED_PULSE_US.data:
+                self.SHUTTER__OPEN_PULSE_US.errors.append('Open and closed pulse widths must differ')
+                self.SHUTTER__CLOSED_PULSE_US.errors.append('Open and closed pulse widths must differ')
+                result = False
 
 
         try:

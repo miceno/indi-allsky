@@ -1,40 +1,37 @@
 # Shutter
 
-## First-release specification
+## Overview
 
-Shutter control is a planned first-class indi-allsky feature coordinated with the camera capture loop. This page specifies the intended behavior; it is not yet implemented in the main application. The standalone script in `misc/solar_shutter_indi.py` is a prototype and is not the feature's operational contract.
+indi-allsky supports an optional positional servo shutter controlled by the capture worker. Select **Shutter - Positional Servo [PWM]** in the Devices configuration to enable it. With the default empty driver selection, shutter control is disabled.
 
-The first release supports a positional servo with two configured positions:
+The application opens the shutter for daytime camera exposures, including daytime SQM exposures, and closes it once the camera reports that exposure/readout has completed. Nighttime operation is not supported.
 
-- **Open:** the camera aperture is unobstructed for an exposure.
-- **Closed:** the camera aperture is covered between daytime exposures.
+## Configuration
 
-### Daytime capture sequence
+Configure these fields in the Devices tab:
 
-When shutter control is enabled:
+| Setting             | Default             | Description                                                                                |
+|---------------------|---------------------|--------------------------------------------------------------------------------------------|
+| GPIO Pin            | Unset               | Blinka board pin connected to the servo signal input; set this before enabling the driver. |
+| Open Pulse Width    | `1000` microseconds | PWM pulse width for the open position.                                                     |
+| Closed Pulse Width  | `2000` microseconds | PWM pulse width for the closed position.                                                   |
+| Servo Settling Time | `1.0` seconds       | Delay after each position command; opening waits this long before exposure starts.         |
 
-1. At startup, make a best-effort move to CLOSED.
-2. Before each scheduled daytime camera exposure, command OPEN and allow the configured servo travel/settling time before starting the exposure.
-3. Keep the shutter open until the camera reports that exposure/readout has completed.
-4. Then command CLOSED. Do not keep it open while the image is processed or saved.
+The servo PWM signal runs at 50 Hz. Pulse widths must be between 500 and 2500 microseconds and the open and closed values must differ. These defaults are starting values only: servo travel and safe endpoints vary by model and mechanism. Calibrate pulse widths and settling time for the installed hardware to avoid driving the servo against its mechanical stops.
 
-The capture loop, rather than a separate polling daemon or image-database query, coordinates these transitions and remains authoritative for exposure cadence. Shutter timing must be coordinated with that schedule; do not start an exposure before the shutter has had time to open.
+At capture-worker startup, the application makes a best-effort move to CLOSED. Before each daytime exposure it commands OPEN and waits the configured settling time before issuing the camera exposure. It keeps the shutter open until the camera reports that exposure/readout is complete, then commands CLOSED before image processing or saving. The capture loop remains authoritative for exposure timing; a separate polling daemon or image-database query is not used.
 
-### Errors and capture continuity
+At shutdown, the application attempts to move CLOSED and releases the PWM resource.
 
-If a shutter-control operation fails, report the error and make a best-effort command to move OPEN. Do not block or abort camera captures because of a shutter-control error. The servo has no position feedback in this specification, so a successful command does not guarantee that the requested physical position was reached.
+## Errors and capture continuity
 
-### Hardware and configuration
+Shutter initialization or control errors are logged and do not block camera capture. If a position command fails, the application makes a best-effort command to OPEN; a failure of that recovery command is also logged. If initialization fails, shutter control is unavailable for that capture-worker run. The servo has no position feedback, so a successful command does not guarantee that the requested physical position was reached.
 
-The actuator for this release is a positional servo controlled by PWM. The GPIO output, open/closed pulse widths, and travel/settling time must be configurable for the target board and servo; pin numbers, pulse-width values, and delays used by the prototype are not defaults established by this specification.
+## Hardware and scope
 
-Power the servo according to its electrical requirements. Do not power it directly from an SBC GPIO pin; use an appropriate servo supply and follow the board and servo requirements for the signal reference and wiring.
+Use a positional servo controlled by PWM. The GPIO signal pin, open/closed pulse widths, and settling time are configurable. Do not power the servo directly from an SBC GPIO pin; use a suitable servo power supply and follow board and servo requirements for signal reference and wiring.
 
-### Out of scope
-
-- Nighttime shutter operation.
-- Rain-triggered closure. indi-allsky may report rain sensor data, but rain is not a shutter-control trigger in this release.
-- Relay/MOSFET binary actuator support.
+Nighttime shutter operation, rain-triggered closure, and relay/MOSFET binary actuators are not supported. The standalone script in `misc/solar_shutter_indi.py` is a prototype and is not used by the integrated feature.
 
 ## GPIO permissions
 
