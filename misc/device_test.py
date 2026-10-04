@@ -23,6 +23,7 @@ from indi_allsky.config import IndiAllSkyConfig
 from indi_allsky.devices import generic as indi_allsky_gpios
 from indi_allsky.devices import dew_heaters
 from indi_allsky.devices import fans
+from indi_allsky.devices import shutters
 from indi_allsky.devices.exceptions import DeviceControlException
 
 
@@ -62,6 +63,7 @@ class TestDevices(object):
         self.thold_level_low = 0
         self.thold_level_med = 0
         self.thold_level_high = 0
+        self._is_shutter = False
 
         self._shutdown = False
 
@@ -168,6 +170,33 @@ class TestDevices(object):
                 sys.exit(1)
 
 
+        elif device_type == 'shutter':
+            logger.warning('Testing Shutter device')
+
+            shutter_config = self.config.get('SHUTTER', {})
+            shutter_classname = shutter_config.get('CLASSNAME')
+            if shutter_classname:
+                try:
+                    shutter_class = getattr(shutters, shutter_classname)
+                    self.device = shutter_class(
+                        self.config,
+                        pin_1_name=shutter_config.get('PIN_1', ''),
+                        open_pulse_us=shutter_config.get('OPEN_PULSE_US', 1000),
+                        closed_pulse_us=shutter_config.get('CLOSED_PULSE_US', 2000),
+                        settle_time=shutter_config.get('SETTLE_TIME', 1.0),
+                    )
+                except (AttributeError, ImportError, OSError, RuntimeError, TypeError, ValueError, DeviceControlException) as e:
+                    logger.error('Error initializing shutter controller: %s', str(e))
+                    sys.exit(1)
+
+                self.device.state = self.device.CLOSED
+                self._is_shutter = True
+
+            else:
+                logger.error('Shutter not configured')
+                sys.exit(1)
+
+
         elif device_type == 'auto_gpio':
             logger.warning('Testing Automated GPIO device')
 
@@ -210,7 +239,9 @@ class TestDevices(object):
             sys.exit(1)
 
 
-        if self.thold_enable:
+        if self._is_shutter:
+            logger.warning('Shutter will alternate between open and closed states')
+        elif self.thold_enable:
             logger.warning('Device thresholds enabled')
         else:
             logger.warning('Device thresholds disabled')
@@ -221,7 +252,17 @@ class TestDevices(object):
 
         ### Main loop
         while True:
-            if self.thold_enable:
+            if self._is_shutter:
+                logger.info('Shutter Open')
+                self.device.state = self.device.OPEN
+                time.sleep(self.sleep)
+
+                self.check_shutdown()
+
+                logger.info('Shutter Closed')
+                self.device.state = self.device.CLOSED
+                time.sleep(self.sleep)
+            elif self.thold_enable:
                 logger.info('Device Level Low')
                 self.device.state = self.thold_level_low
                 time.sleep(self.sleep)
@@ -274,6 +315,7 @@ if __name__ == "__main__":
             'fan',
             'dew_heater',
             'auto_gpio',
+            'shutter',
         ),
     )
     argparser.add_argument(
@@ -292,4 +334,3 @@ if __name__ == "__main__":
     td.sleep = args.sleep
 
     td.main(args.device)
-

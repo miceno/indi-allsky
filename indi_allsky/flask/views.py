@@ -3091,6 +3091,11 @@ class ConfigView(FormView):
             'DEW_HEATER__THOLD_DIFF_HIGH'    : '{0:+d}'.format(self.indi_allsky_config.get('DEW_HEATER', {}).get('THOLD_DIFF_HIGH', 5)),
             'DEW_HEATER__HOLD_SECONDS'       : self.indi_allsky_config.get('DEW_HEATER', {}).get('HOLD_SECONDS', 0),
             'DEW_HEATER__PWM_FREQUENCY'      : self.indi_allsky_config.get('DEW_HEATER', {}).get('PWM_FREQUENCY', 500),
+            'SHUTTER__CLASSNAME'             : self.indi_allsky_config.get('SHUTTER', {}).get('CLASSNAME', ''),
+            'SHUTTER__PIN_1'                 : self.indi_allsky_config.get('SHUTTER', {}).get('PIN_1', ''),
+            'SHUTTER__OPEN_PULSE_US'         : self.indi_allsky_config.get('SHUTTER', {}).get('OPEN_PULSE_US', 1000),
+            'SHUTTER__CLOSED_PULSE_US'       : self.indi_allsky_config.get('SHUTTER', {}).get('CLOSED_PULSE_US', 2000),
+            'SHUTTER__SETTLE_TIME'           : self.indi_allsky_config.get('SHUTTER', {}).get('SETTLE_TIME', 1.0),
             'FAN__CLASSNAME'                 : self.indi_allsky_config.get('FAN', {}).get('CLASSNAME', ''),
             'FAN__I2C_ADDRESS'               : self.indi_allsky_config.get('FAN', {}).get('I2C_ADDRESS', '0x11'),
             'FAN__PIN_1'                     : self.indi_allsky_config.get('FAN', {}).get('PIN_1', 'D13'),
@@ -3576,6 +3581,7 @@ class AjaxConfigView(BaseView):
             'CIRCULAR_DISPLAY',
             'FOCUSER',
             'DEW_HEATER',
+            'SHUTTER',
             'FAN',
             'GENERIC_GPIO',
             'MANUAL_GPIO',
@@ -4180,6 +4186,11 @@ class AjaxConfigView(BaseView):
         self.indi_allsky_config['DEW_HEATER']['THOLD_DIFF_HIGH']        = int(request.json['DEW_HEATER__THOLD_DIFF_HIGH'])
         self.indi_allsky_config['DEW_HEATER']['HOLD_SECONDS']           = int(request.json['DEW_HEATER__HOLD_SECONDS'])
         self.indi_allsky_config['DEW_HEATER']['PWM_FREQUENCY']          = int(request.json['DEW_HEATER__PWM_FREQUENCY'])
+        self.indi_allsky_config['SHUTTER']['CLASSNAME']                 = str(request.json['SHUTTER__CLASSNAME'])
+        self.indi_allsky_config['SHUTTER']['PIN_1']                     = str(request.json['SHUTTER__PIN_1'])
+        self.indi_allsky_config['SHUTTER']['OPEN_PULSE_US']             = int(request.json['SHUTTER__OPEN_PULSE_US'])
+        self.indi_allsky_config['SHUTTER']['CLOSED_PULSE_US']           = int(request.json['SHUTTER__CLOSED_PULSE_US'])
+        self.indi_allsky_config['SHUTTER']['SETTLE_TIME']               = float(request.json['SHUTTER__SETTLE_TIME'])
         self.indi_allsky_config['FAN']['CLASSNAME']                     = str(request.json['FAN__CLASSNAME'])
         self.indi_allsky_config['FAN']['I2C_ADDRESS']                   = str(request.json['FAN__I2C_ADDRESS'])
         self.indi_allsky_config['FAN']['PIN_1']                         = str(request.json['FAN__PIN_1'])
@@ -15008,4 +15019,3 @@ def manifest():
     response = jsonify(manifest_data)
     response.headers['Content-Type'] = 'application/manifest+json'
     return response
-

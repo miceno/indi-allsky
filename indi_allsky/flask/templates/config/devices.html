@@ -204,6 +204,51 @@
             </div>
         </div>
 
+        <!-- Shutter Device Controls Card -->
+        <div class="tw:card tw:bg-base-200 tw:border tw:border-base-300 tw:rounded-[var(--radius-box)] shadow-sm">
+            <div class="tw:card-body tw:p-6 tw:flex tw:flex-col tw:gap-4">
+                <div class="tw:flex tw:flex-col tw:gap-1">
+                    <span class="tw:text-[0.625rem] tw:font-bold tw:uppercase tw:tracking-widest tw:text-base-content/50">Camera Shutter</span>
+                    <span class="tw:text-xs tw:text-base-content/60">Opens around daytime camera exposures and closes after readout. A PWM servo requires a separate suitable power supply.</span>
+                </div>
+
+                <div class="tw:grid tw:grid-cols-1 md:tw:grid-cols-2 tw:gap-4">
+                    <div class="tw:flex tw:flex-col tw:gap-1">
+                        <span class="tw:text-[0.625rem] tw:font-bold tw:uppercase tw:tracking-wider tw:text-base-content/80">{{ form_config.SHUTTER__CLASSNAME.label.text }}</span>
+                        {{ form_config.SHUTTER__CLASSNAME(class='tw:select tw:select-bordered tw:select-sm tw:h-11 tw:bg-base-100 tw:text-base-content tw:w-full') }}
+                        <div id="SHUTTER__CLASSNAME-error" class="tw:text-error tw:text-xs tw:mt-1" style="display: none;"></div>
+                    </div>
+                    <div class="tw:flex tw:flex-col tw:gap-1">
+                        <span class="tw:text-[0.625rem] tw:font-bold tw:uppercase tw:tracking-wider tw:text-base-content/80">{{ form_config.SHUTTER__PIN_1.label.text }}</span>
+                        {{ form_config.SHUTTER__PIN_1(class='tw:input tw:input-bordered tw:input-sm tw:h-11 tw:bg-base-100 tw:text-base-content tw:w-full') }}
+                        <span class="tw:text-[0.625rem] tw:text-base-content/40">Blinka board pin name, for example D18.</span>
+                        <div id="SHUTTER__PIN_1-error" class="tw:text-error tw:text-xs tw:mt-1" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="tw:grid tw:grid-cols-1 sm:tw:grid-cols-3 tw:gap-4">
+                    <div class="tw:flex tw:flex-col tw:gap-1">
+                        <span class="tw:text-[0.625rem] tw:font-bold tw:uppercase tw:tracking-wider tw:text-base-content/80">{{ form_config.SHUTTER__OPEN_PULSE_US.label.text }}</span>
+                        {{ form_config.SHUTTER__OPEN_PULSE_US(class='tw:input tw:input-bordered tw:input-sm tw:h-11 tw:bg-base-100 tw:text-base-content tw:w-full') }}
+                        <span class="tw:text-[0.625rem] tw:text-base-content/40">Servo-dependent; calibrate to the open position (500–2500 µs).</span>
+                        <div id="SHUTTER__OPEN_PULSE_US-error" class="tw:text-error tw:text-xs tw:mt-1" style="display: none;"></div>
+                    </div>
+                    <div class="tw:flex tw:flex-col tw:gap-1">
+                        <span class="tw:text-[0.625rem] tw:font-bold tw:uppercase tw:tracking-wider tw:text-base-content/80">{{ form_config.SHUTTER__CLOSED_PULSE_US.label.text }}</span>
+                        {{ form_config.SHUTTER__CLOSED_PULSE_US(class='tw:input tw:input-bordered tw:input-sm tw:h-11 tw:bg-base-100 tw:text-base-content tw:w-full') }}
+                        <span class="tw:text-[0.625rem] tw:text-base-content/40">Servo-dependent; calibrate to the closed position (500–2500 µs).</span>
+                        <div id="SHUTTER__CLOSED_PULSE_US-error" class="tw:text-error tw:text-xs tw:mt-1" style="display: none;"></div>
+                    </div>
+                    <div class="tw:flex tw:flex-col tw:gap-1">
+                        <span class="tw:text-[0.625rem] tw:font-bold tw:uppercase tw:tracking-wider tw:text-base-content/80">{{ form_config.SHUTTER__SETTLE_TIME.label.text }}</span>
+                        {{ form_config.SHUTTER__SETTLE_TIME(class='tw:input tw:input-bordered tw:input-sm tw:h-11 tw:bg-base-100 tw:text-base-content tw:w-full') }}
+                        <span class="tw:text-[0.625rem] tw:text-base-content/40">Wait after each movement, in seconds (0–30).</span>
+                        <div id="SHUTTER__SETTLE_TIME-error" class="tw:text-error tw:text-xs tw:mt-1" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Fan Device Controls Card -->
         <div class="tw:card tw:bg-base-200 tw:border tw:border-base-300 tw:rounded-[var(--radius-box)] shadow-sm">
             <div class="tw:card-body tw:p-6 tw:flex tw:flex-col tw:gap-4">
